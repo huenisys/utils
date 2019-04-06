@@ -8,7 +8,7 @@ abstract class AbstractMessageBagWithFormatting
 extends MessageBag
 implements InterfaceMessageBagWithFormatting {
 
-    public static $defaultMessagesArray = [
+    protected static $defaultMessagesArray = [
         'hello' => 'Hello %s',
     ];
 
