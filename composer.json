@@ -15,7 +15,7 @@
     },
     "autoload-dev": {
       "psr-4": {
-        "huenisys\\Utils\\Tests\\": "tests/"
+        "huenisys\\Utils\\Tests\\": "tests/Unit/"
       }
     },
     "require-dev": {
