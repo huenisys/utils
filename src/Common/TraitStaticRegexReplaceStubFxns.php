@@ -68,6 +68,6 @@ trait TraitStaticRegexReplaceStubFxns {
      */
     public static function regexReplaceSameStubRelToBasePath($searchText, $replacerText, $pathRelToBase, $isFolder = false)
     {
-        return static::regexReplaceStubRelToBasePath($searchText, $replacerText, $pathRelToBase, $isFolder);
+        return static::regexReplaceSameStub($searchText, $replacerText, base_path($pathRelToBase), $isFolder);
     }
 }
