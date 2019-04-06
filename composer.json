@@ -1,0 +1,24 @@
+{
+    "name": "huenisys/utils",
+    "description": "collection of utilities",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "huenisys",
+            "email": "paul@huenits.com"
+        }
+    ],
+    "autoload": {
+      "psr-4": {
+        "huenisys\\Utils\\": "src/"
+      }
+    },
+    "autoload-dev": {
+      "psr-4": {
+        "huenisys\\Utils\\Tests\\": "tests/"
+      }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.0"
+    }
+}
