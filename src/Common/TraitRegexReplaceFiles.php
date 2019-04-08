@@ -3,24 +3,51 @@
 namespace huenisys\Utils\Common;
 
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 trait TraitRegexReplaceFiles {
+
+    public static function rrs()
+    {
+        return call_user_func_array('static::regexReplaceStub', func_get_args());
+    }
+
+    public static function rrss()
+    {
+        return call_user_func_array('static::regexReplaceSameStub', func_get_args());
+    }
+
+    public static function rrsrbp()
+    {
+        return call_user_func_array('static::regexReplaceStubRelToBasePath', func_get_args());
+    }
+
+    public static function rrssrbp()
+    {
+        return call_user_func_array('static::regexReplaceSameStubRelToBasePath', func_get_args());
+    }
+
+    public static function rrafc()
+    {
+        return call_user_func_array('static::regexReplaceAllFilesContent', func_get_args());
+    }
 
     /**
      * Regex replaces texts in a file
      *
-     * @param string $searchText
-     * @param string $replacerText The new text
+     * @param string $search
+     * @param string $replace The new text
      * @param string $pathSource source content
      * @param string $pathDest where the new text will go
-     * @param bool $isFolder if folder, we must iterate over all files
      */
-    public static function regexReplaceStub($searchText, $replacerText, $pathSource, $pathDest, $isFolder = false)
+    public static function regexReplaceStub($search, $replace, $pathSource, $pathDest)
     {
         $newContent = str_replace(
-            $searchText,
-            $replacerText,
+            $search,
+            $replace,
             file_get_contents($pathSource)
         );
 
@@ -31,16 +58,51 @@ trait TraitRegexReplaceFiles {
     }
 
     /**
+     * Regex replaces text in a file
+     *
+     * @param string $search
+     * @param string $replace The new text
+     * @param string $pathname Relative path to laravel folder
+     */
+    public static function regexReplaceSameStub($search, $replace, $pathname)
+    {
+        return static::regexReplaceStub($search, $replace, $pathname, $pathname);
+    }
+
+    /**
+     * Regex replaces text in a file
+     *
+     * @param string $search
+     * @param string $replace The new text
+     * @param string $pathRelToBaseSource Source with path relative path to a base folder
+     * @param string $pathRelToBaseDest Destination filepath relative path to a base folder
+     */
+    public static function regexReplaceStubRelToBasePath($search, $replace, $pathRelToBaseSource, $pathRelToBaseDest)
+    {
+        return static::regexReplaceStub($search, $replace, static::bp($pathRelToBaseSource), static::bp($pathRelToBaseDest));
+    }
+
+    /**
+     * Regex replaces text in a file
+     *
+     * @param string $search
+     * @param string $replace The new text
+     * @param string $pathRelToBase Relative path to a base folder
+     * @param bool $isFolder if folder, we must iterate over all files
+     */
+    public static function regexReplaceSameStubRelToBasePath($search, $replace, $pathRelToBase, $isFolder = false)
+    {
+        return static::regexReplaceSameStub($search, $replace, static::bp($pathRelToBase), $isFolder);
+    }
+
+    /**
      *  Regex replace files
      *
      * @return mixed
      */
     public static function regexReplaceAllFilesContent($search, $replace, $dirPath, bool $returnSearchedFilesArr = true)
     {
-        $fileObjsArr = iterator_to_array(
-            Finder::create()->files()->ignoreDotFiles(false)->in($dirPath)->sortByName(),
-            false
-        );
+        $fileObjsArr = static::allFiles($dirPath);
 
         $thisTrait = static::class;
 
@@ -56,46 +118,62 @@ trait TraitRegexReplaceFiles {
             return $pathnamesArr;
     }
 
-    protected function allFiles($dirPath) {
+    public static function allFiles($dirPath, array $options = []) {
+
+        extract(array_merge(
+            $finderOptions = [
+                'ignoreDotFiles' => false,
+                'depth' => null
+            ], Arr::only($options, array_keys($finderOptions))
+        ));
+
         return iterator_to_array(
-            Finder::create()->files()->ignoreDotFiles(false)->in($dirPath)->sortByName(),
+            Finder::create()->files()->ignoreDotFiles($ignoreDotFiles)->in($dirPath)->depth($depth)->sortByName(),
             false
         );
     }
 
-    public static function regexReplaceAllFiles($search, $replace, $sourceDirPath, array $options = [])
+    /**
+     * Regex replaces texts in a file
+     *
+     * @param string $search
+     * @param string $relace
+     * @param string $sourceDirPath directory of source files
+     * @param array $options
+     * @return mixed
+     */
+    public static function regexReplaceAllFilepaths($search, $replace, $sourceDirPath, array $options = [])
     {
-        $defOptions = array_merge([
-            'destDirPath' => null,
-            'includeContent' => false,
-            'keepCopy' => true,
-            'report' => true,
-            'backupDirPath' => null,
-        ], $options);
-
-        extract($defOptions);
+        extract(array_merge(
+            $searchOptions = [
+                'destDirPath' => null,
+                'includeContent' => false,
+                'report' => true,
+            ], Arr::only($options, array_keys($searchOptions))
+        ));
 
         $thisTrait = static::class;
 
-        if (is_null($destDirPath))
+        if (is_null($destDirPath)) :
             $destDirPath = $sourceDirPath;
+        else :
+            $filesystem = new Filesystem();
+            try {
+                $filesystem->mirror($sourceDirPath, $destDirPath);
+            } catch (IOExceptionInterface $exception) {
+                echo "An error occurred while creating your directory at ".$exception->getPath();
+            }
+        endif;
 
-        $fileObjsArr = static::allFiles($sourceDirPath);
+        $fileObjsArr = static::allFiles($destDirPath, Arr::only($options, [
+            'ignoreDotFiles',
+            'depth'
+        ]));
 
-        $curTime = (string) time();
+        $deltaReportsArr = array_map(function($fileO) use($search, $replace, $thisTrait, $sourceDirPath, $destDirPath, $includeContent) {
 
-        $deltaReportsArr = array_map(function($fileO) use($search, $replace, $thisTrait, $keepCopy, $sourceDirPath, $destDirPath, $backupDirPath, $includeContent, $curTime) {
-
-            $afterPath = Str::after($fileO->getPathname(), $sourceDirPath);
-
-            if ($keepCopy) :
-                $backupDirPath = $backupDirPath ?? $sourceDirPath . '.bak'. DIRECTORY_SEPARATOR . $curTime;
-
-                if (!is_dir($backupDirPath))
-                    mkdir($backupDirPath, 0777, true);
-
-                copy($fileO->getPathname(), $backupDirPath . DIRECTORY_SEPARATOR . $afterPath);
-            endif;
+            // this makes sure higher level folders arent affected
+            $afterPath = Str::after($fileO->getPathname(), $destDirPath);
 
             $possiblyReplacedAfterPath = str_replace($search, $replace, $afterPath);
 
@@ -120,45 +198,7 @@ trait TraitRegexReplaceFiles {
             return $deltaReportsArr;
     }
 
-    /**
-     * Regex replaces text in a file
-     *
-     * @param string $searchText
-     * @param string $replacerText The new text
-     * @param string $pathname Relative path to laravel folder
-     * @param bool $isFolder if folder, we must iterate over all files
-     */
-    public static function regexReplaceSameStub($searchText, $replacerText, $pathname, $isFolder = false)
-    {
-        return static::regexReplaceStub($searchText, $replacerText, $pathname, $pathname, $isFolder);
-    }
 
-    /**
-     * Regex replaces text in a file
-     *
-     * @param string $searchText
-     * @param string $replacerText The new text
-     * @param string $pathRelToBaseSource Source with path relative path to a base folder
-     * @param string $pathRelToBaseDest Destination filepath relative path to a base folder
-     * @param bool $isFolder if folder, we must iterate over all files
-     */
-    public static function regexReplaceStubRelToBasePath($searchText, $replacerText, $pathRelToBaseSource, $pathRelToBaseDest, $isFolder = false)
-    {
-        return static::regexReplaceStub($searchText, $replacerText, static::base_path($pathRelToBaseSource), static::base_path($pathRelToBaseDest), $isFolder);
-    }
-
-    /**
-     * Regex replaces text in a file
-     *
-     * @param string $searchText
-     * @param string $replacerText The new text
-     * @param string $pathRelToBase Relative path to a base folder
-     * @param bool $isFolder if folder, we must iterate over all files
-     */
-    public static function regexReplaceSameStubRelToBasePath($searchText, $replacerText, $pathRelToBase, $isFolder = false)
-    {
-        return static::regexReplaceSameStub($searchText, $replacerText, static::base_path($pathRelToBase), $isFolder);
-    }
 
     /**
      * Returns path relative to a base path
@@ -168,7 +208,7 @@ trait TraitRegexReplaceFiles {
      * @param string $basePath defaults to tmp folder
      * @return string
      */
-    public static function base_path(string $pathRelToBase = null, bool $forceLocal = false, string $basePath = null)
+    public static function bp(string $pathRelToBase = null, bool $forceLocal = false, string $basePath = null)
     {
         $composerPackagePath = __DIR__.'/../..';
 

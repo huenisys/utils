@@ -2,68 +2,71 @@
 
 namespace huenisys\Utils\Tests;
 
-use huenisys\Utils\Common\TraitRegexReplaceFiles as TheTrait;
+use huenisys\Utils\Common\TraitRegexReplaceFiles as Trt;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 class TraitRegexReplaceFilesTest extends TestCase
 {
-    public $filepath1;
-    public $filepath2;
-    public $filename1;
-    public $filename2;
+
+    protected function sU_fs()
+    {
+        $this->fs = new Filesystem();
+    }
+
+    protected function sU_g1()
+    {
+        // playground
+        $this->fs->mirror(Trt::bp('g1'), Trt::bp('pg/g1'));
+
+        $this->g1t1 = Trt::bp('pg/g1/t1.txt');
+        $this->g1t2 = Trt::bp('pg/g1/t2.txt');
+        $this->g1t3 = Trt::bp('pg/g1/t3.txt');
+
+        file_put_contents($this->g1t1, 'Hello World');
+        file_put_contents($this->g1t2, 'Hi Earth');
+        file_put_contents($this->g1t3, 'Lorem Ipsum');
+    }
 
     public function setUp() :void
     {
-        $this->filename1 = 'test1.txt';
-        $this->filename2 = 'test2.txt';
-        $this->filepath1 = TheTrait::base_path($this->filename1);
-        $this->filepath2 = TheTrait::base_path($this->filename2);
+        if (! defined('DS')) {
+            define('DS', DIRECTORY_SEPARATOR);
+        }
 
-        var_dump(TheTrait::base_path($this->filename1));
-
-        // always start with hello world
-        file_put_contents($this->filepath1, 'Hello World');
-        file_put_contents($this->filepath2, 'Hello World');
+        $this->sU_fs(); // setup filesystem
+        $this->sU_g1(); // setup group1
     }
 
     /** @test **/
-    public function initialTextIsHelloWorld()
+    public function initialTextsFromG1_isShowingRight()
     {
-        $this->assertStringContainsString('Hello World', file_get_contents($this->filepath1));
+        $this->assertStringContainsString('Hello World', file_get_contents($this->g1t1));
+        $this->assertStringContainsString('Hi Earth', file_get_contents($this->g1t2));
+        $this->assertStringContainsString('Lorem Ipsum', file_get_contents($this->g1t3));
     }
 
     /** @test **/
-    public function replaceSameStubWithText()
+    public function regexReplaceStub_sourceContentFromAnotherFile()
     {
-       TheTrait::regexReplaceSameStub('World', 'Paul', $this->filepath1);
-
-        $this->assertStringContainsString('Hello Paul', file_get_contents($this->filepath1));
+        Trt::rrs('Lorem', 'Ipsum', $this->g1t3, $this->g1t1);
+        $this->assertStringContainsString('Ipsum Ipsum', file_get_contents($this->g1t1));
+        $this->assertStringNotContainsString('Ipsum1 Ipsum', file_get_contents($this->g1t1));
     }
 
     /** @test **/
-    public function replaceStubWithSourceContentFromAnotherFile()
+    public function regexReplaceSameStub_withText()
     {
-        TheTrait::regexReplaceStub('Lorem', 'Ipsum', TheTrait::base_path('ipsum-source.txt'), $this->filepath1);
-
-        $this->assertStringContainsString('Ipsum Ipsum', file_get_contents($this->filepath1));
-        $this->assertStringNotContainsString('Ipsum1 Ipsum', file_get_contents($this->filepath1));
+        Trt::rrss('World', 'Paul', $this->g1t1);
+        $this->assertStringContainsString('Hello Paul', file_get_contents($this->g1t1));
     }
 
-    /** @test **/
-    public function regexReplaceFilesInDir()
+    public function regexReplaceFilesContentInDir()
     {
-        TheTrait::regexReplaceAllFilesContent('World', 'World1', TheTrait::base_path());
-
-        $this->assertStringContainsString('World1', file_get_contents($this->filepath1));
-        $this->assertStringNotContainsString('Ipsum Ipsum', file_get_contents($this->filepath2));
+        Trt::rrafc('World', 'World1', Trt::bp('pg/g1'));
+        $this->assertStringContainsString('Hello World1', file_get_contents($this->g1t1));
+        $this->assertStringNotContainsString('Ipsum Ipsum', file_get_contents($this->g1t3));
     }
 
-    /** @test **/
-    public function fxn()
-    {
-        $result = TheTrait::regexReplaceAllFiles('bloom1', 'bloom10', TheTrait::base_path('files-source'), [
-            'backupDirPath'=>TheTrait::base_path('files-backup'),
-        ]);
-        var_dump($result);
-    }
 }
