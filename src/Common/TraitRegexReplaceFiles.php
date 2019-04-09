@@ -10,6 +10,11 @@ use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 
 trait TraitRegexReplaceFiles {
 
+    public static function rrafp()
+    {
+        return call_user_func_array('static::regexReplaceAllFilepaths', func_get_args());
+    }
+
     public static function rrs()
     {
         return call_user_func_array('static::regexReplaceStub', func_get_args());
